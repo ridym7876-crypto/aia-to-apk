@@ -1,0 +1,47 @@
+name: Build AIA to APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.aia"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jdk ant unzip wget git
+
+      - name: Download App Inventor sources
+        run: |
+          git clone https://github.com/mit-cml/appinventor-sources.git
+          cd appinventor-sources
+          git checkout master
+          cd ..
+
+      - name: Setup build environment
+        run: |
+          cd appinventor-sources/appinventor
+          ant PrepareAll
+
+      - name: Build APK from AIA
+        run: |
+          mkdir output
+          for file in *.aia; do
+            echo "Building $file ..."
+            java -cp "appinventor-sources/appinventor/buildserver/build/classes:appinventor-sources/appinventor/buildserver/lib/*" \
+              com.google.appinventor.buildserver.Main --build $file output/
+          done
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: Built-APK
+          path: output/*.apk
